@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { SearchResponse, Gif } from '../interfaces/gifs.interface';
 
@@ -6,8 +6,8 @@ import { SearchResponse, Gif } from '../interfaces/gifs.interface';
   providedIn: 'root',
 })
 export class GifsService {
-  private api : string = 'api.giphy.com/v1/gifs/search';
-  private apiKey : string = '304MLMhyTm5sP29o1VjXBd3XY8LVyBQn';
+  private api: string = 'https://api.giphy.com/v1/gifs/';
+  private apiKey: string = '304MLMhyTm5sP29o1VjXBd3XY8LVyBQn';
   private _history: string[] = [];
 
   public results: Gif[] = [];
@@ -16,17 +16,25 @@ export class GifsService {
     return [...this._history];
   }
 
-  constructor( private http: HttpClient ) {
+  constructor(private http: HttpClient) {
     this._history = JSON.parse(localStorage.getItem('history')!) || [];
+    this.results =
+      JSON.parse(localStorage.getItem('results')!) || this.searchGifs('freak');
   }
 
   searchGifs(query: string) {
-    return this.http.get<SearchResponse>(
-      `https://${this.api}?api_key=${this.apiKey}&q=${query}&limit=20`)
+    const params = new HttpParams()
+      .set('api_key', this.apiKey)
+      .set('limit', '20')
+      .set('q', query);
+    this.http
+      .get<SearchResponse>(
+        `${this.api}search`, { params }
+      )
       .subscribe((resp: SearchResponse) => {
-        console.log(resp.data);
         this.results = resp.data;
-      })
+        localStorage.setItem('results', JSON.stringify(this.results));
+      });
   }
 
   addToHistory(query: string) {
@@ -35,15 +43,16 @@ export class GifsService {
         ? this._history.unshift(query[0].toUpperCase() + query.slice(1))
         : null
       : (this._history.pop(),
-        this._history.unshift(query[0].toUpperCase() + query.slice(1)))
-      
-      localStorage.setItem('history', JSON.stringify(this._history));
+        this._history.unshift(query[0].toUpperCase() + query.slice(1)));
+
+    localStorage.setItem('history', JSON.stringify(this._history));
   }
   removeFromHistory(query: string) {
     this._history = this._history.filter((item) => item !== query);
   }
   clearHistory() {
     this._history = [];
+    localStorage.removeItem('history');
   }
   searchAgain(query: string) {
     this.searchGifs(query);
